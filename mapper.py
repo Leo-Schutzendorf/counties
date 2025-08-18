@@ -2,6 +2,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from shapely.geometry import box
 import pandas as pd
+import mplcursors
 
 
 def readdata():
@@ -30,6 +31,9 @@ def displayMap():
     # Clip to bounding box
     counties = gpd.clip(counties, bbox_geom)
 
+    # Reset index so it matches plotting collection
+    counties = counties.reset_index(drop=True)
+
     # Create figure
     fig, ax = plt.subplots(figsize=(20, 12), dpi=150)
     counties.plot(ax=ax, color="red", edgecolor="white", linewidth=0.1)
@@ -37,16 +41,15 @@ def displayMap():
     ax.set_title("Counties", fontsize=20)
     ax.set_axis_off()
 
-    # Enable interactive mode & scroll zoom
+    # Scroll zoom
     def on_scroll(event):
         base_scale = 1.2
         cur_xlim = ax.get_xlim()
         cur_ylim = ax.get_ylim()
-        xdata = event.xdata  # get event x location
-        ydata = event.ydata  # get event y location
-        if event.button == 'up':  # zoom in
+        xdata, ydata = event.xdata, event.ydata
+        if event.button == 'up':
             scale_factor = 1 / base_scale
-        elif event.button == 'down':  # zoom out
+        elif event.button == 'down':
             scale_factor = base_scale
         else:
             scale_factor = 1
@@ -55,12 +58,31 @@ def displayMap():
         relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
         rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
         ax.set_xlim([xdata - new_width * (1 - relx),
-                     xdata + new_width * (relx)])
+                     xdata + new_width * relx])
         ax.set_ylim([ydata - new_height * (1 - rely),
-                     ydata + new_height * (rely)])
+                     ydata + new_height * rely])
         fig.canvas.draw_idle()
 
     fig.canvas.mpl_connect('scroll_event', on_scroll)
+
+    # Hover tooltips (show full county name + state abbreviation)
+    cursor = mplcursors.cursor(ax.collections[0], hover=True)
+
+    @cursor.connect("add")
+    def on_hover(sel):
+        # sel.index might be a tuple/array -> convert to int
+        idx = int(sel.index[0])
+
+        county_row = counties.iloc[idx]
+        county_name = county_row["NAMELSAD"]
+        state_abbr = county_row["STUSPS"]
+
+        # Set annotation text
+        sel.annotation.set_text(f"{county_name}, {state_abbr}")
+
+        # Style the tooltip background
+        bbox = sel.annotation.get_bbox_patch()
+        bbox.set(fc="white", alpha=0.7, edgecolor="black")
 
     plt.show()
 
