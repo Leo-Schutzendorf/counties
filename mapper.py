@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import box
 import pandas as pd
 import mplcursors
+import numpy as np
 
 
 def readdata():
@@ -65,22 +66,18 @@ def displayMap():
 
     fig.canvas.mpl_connect('scroll_event', on_scroll)
 
-    # Hover tooltips (show full county name + state abbreviation)
-    cursor = mplcursors.cursor(ax.collections[0], hover=True)
+    collection = counties.plot(ax=ax, color="red", edgecolor="white", linewidth=0.1)
+
+    cursor = mplcursors.cursor(collection, hover=True)
 
     @cursor.connect("add")
     def on_hover(sel):
-        # sel.index might be a tuple/array -> convert to int
-        idx = int(sel.index[0])
-
-        county_row = counties.iloc[idx]
+        idx = int(np.ravel([sel.index])[0])-1
+        county_row = counties.iloc[min(idx,len(counties)-1)]
         county_name = county_row["NAMELSAD"]
         state_abbr = county_row["STUSPS"]
 
-        # Set annotation text
         sel.annotation.set_text(f"{county_name}, {state_abbr}")
-
-        # Style the tooltip background
         bbox = sel.annotation.get_bbox_patch()
         bbox.set(fc="white", alpha=0.7, edgecolor="black")
 
